@@ -107,7 +107,7 @@ int main(int argc, char **argv)
                (int)devProps.clockRate);
     }
 
-    const int ARRAY_SIZE = 1 << 20;
+    const int ARRAY_SIZE = 1 << 16;
     const int ARRAY_BYTES = ARRAY_SIZE * sizeof(float);
 
     // generate the input array on the host
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     float sum = 0.0f;
     for(int i = 0; i < ARRAY_SIZE; i++) {
         // generate random float in [-1.0f, 1.0f]
-        h_in[i] = -1.0f + (float)random()/((float)RAND_MAX/2.0f);
+        h_in[i] = -1.0f + (float)rand()/((float)RAND_MAX/2.0f);
         sum += h_in[i];
     }
 
@@ -177,6 +177,6 @@ int main(int argc, char **argv)
     cudaFree(d_in);
     cudaFree(d_intermediate);
     cudaFree(d_out);
-        
+
     return 0;
 }
