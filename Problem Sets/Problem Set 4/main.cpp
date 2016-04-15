@@ -30,14 +30,23 @@ void your_sort(unsigned int* const inputVals,
                unsigned int* const outputPos,
                const size_t numElems);
 
+void PrintFullPath(char * partialPath)
+{
+  char full[_MAX_PATH];
+  if (_fullpath(full, partialPath, _MAX_PATH) != NULL)
+    printf("Full path is: %s\n", full);
+  else
+    printf("Invalid path\n");
+}
+
 int main(int argc, char **argv) {
   unsigned int *inputVals;
   unsigned int *inputPos;
   unsigned int *outputVals;
   unsigned int *outputPos;
 
-  size_t numElems;
-
+  size_t numElems = 4;
+  PrintFullPath(".\\");
   std::string input_file;
   std::string template_file;
   std::string output_file;
@@ -65,8 +74,30 @@ int main(int argc, char **argv) {
   //load the image and give us our input and output pointers
   preProcess(&inputVals, &inputPos, &outputVals, &outputPos, numElems, input_file, template_file);
 
+  /*
+  // Use small array to Debug
+  checkCudaErrors(cudaMalloc(&inputVals, sizeof(unsigned int)* numElems));
+  checkCudaErrors(cudaMalloc(&inputPos, sizeof(unsigned int)* numElems));
+  checkCudaErrors(cudaMalloc(&outputVals, sizeof(unsigned int)* numElems));
+  checkCudaErrors(cudaMalloc(&outputPos, sizeof(unsigned int)* numElems));
+  unsigned int ll[4] = { 0, 5, 2, 7 };
+  thrust::host_vector<unsigned int> h_v(ll, ll+4);
+  printf("%d %d %d %d\n", h_v[0], h_v[1], h_v[2], h_v[3]);
+  thrust::device_vector<unsigned int> d_v = h_v;
+  cudaMemcpy(inputVals, thrust::raw_pointer_cast(d_v.data()), sizeof(unsigned int)* numElems, cudaMemcpyDeviceToDevice);
+  cudaMemcpy(inputPos, thrust::raw_pointer_cast(d_v.data()), sizeof(unsigned int)* numElems, cudaMemcpyDeviceToDevice);
+  */
+
   GpuTimer timer;
   timer.Start();
+
+  thrust::device_ptr<unsigned int> d_inputVals(inputVals);
+  thrust::device_ptr<unsigned int> d_inputPos(inputPos);
+
+  thrust::host_vector<unsigned int> h_inputVals(d_inputVals,
+    d_inputVals + numElems);
+  thrust::host_vector<unsigned int> h_inputPos(d_inputPos,
+    d_inputPos + numElems);
 
   //call the students' code
   your_sort(inputVals, inputPos, outputVals, outputPos, numElems);
@@ -82,8 +113,9 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  // TODO: something wrong with the function postProcess??
   //check results and output the red-eye corrected image
-  postProcess(outputVals, outputPos, numElems, output_file);
+  //postProcess(outputVals, outputPos, numElems, output_file);
 
   // check code moved from HW4.cu
   /****************************************************************************
@@ -100,13 +132,7 @@ int main(int argc, char **argv) {
   *                                                                           *
   * Thrust containers are used for copying memory from the GPU                *
   * ************************************************************************* */
-  thrust::device_ptr<unsigned int> d_inputVals(inputVals);
-  thrust::device_ptr<unsigned int> d_inputPos(inputPos);
-
-  thrust::host_vector<unsigned int> h_inputVals(d_inputVals,
-                                                d_inputVals+numElems);
-  thrust::host_vector<unsigned int> h_inputPos(d_inputPos,
-                                               d_inputPos + numElems);
+  ;
 
   thrust::host_vector<unsigned int> h_outputVals(numElems);
   thrust::host_vector<unsigned int> h_outputPos(numElems);

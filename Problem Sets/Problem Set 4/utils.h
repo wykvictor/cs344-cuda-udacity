@@ -8,6 +8,7 @@
 #include <cuda_runtime_api.h>
 #include <cassert>
 #include <cmath>
+#include <algorithm>
 
 #define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
 
@@ -33,6 +34,7 @@ void checkResultsExact(const T* const ref, const T* const gpu, size_t numElem) {
       exit(1);
     }
   }
+  std::cout << "Pass: Same" << std::endl;
 }
 
 template<typename T>
