@@ -26,29 +26,50 @@
 
 
 #include "utils.h"
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
+#include <device_launch_parameters.h>
+#include <device_functions.h>
 
 __global__
-void yourHisto(const unsigned int* const vals, //INPUT
-               unsigned int* const histo,      //OUPUT
-               int numVals)
+void atomic_kernel(const unsigned int* const d_vals, //INPUT
+               unsigned int* const d_histo,      //OUPUT
+               const unsigned int numElems)
 {
-  //TODO fill in this kernel to calculate the histogram
-  //as quickly as possible
-
-  //Although we provide only one kernel skeleton,
-  //feel free to use more if it will help you
-  //write faster code
+  int myId = threadIdx.x + blockIdx.x * blockDim.x;
+  if (myId >= numElems) return;
+  atomicAdd(&d_histo[d_vals[myId]], 1);
 }
 
 void computeHistogram(const unsigned int* const d_vals, //INPUT
                       unsigned int* const d_histo,      //OUTPUT
                       const unsigned int numBins,
-                      const unsigned int numElems)
+                      const unsigned int numElems, int types)
 {
-  //TODO Launch the yourHisto kernel
+  const int m = 1 << 10;
+  int blocks = ceil((float)numElems / m);
 
-  //if you want to use/launch more than one kernel,
-  //feel free
+  /*thrust::device_ptr<unsigned int> in_vals(d_vals);
+  thrust::device_ptr<unsigned int> in_keys(d_vals);
+  thrust::device_ptr<unsigned int> out_vals(d_histo);
+  unsigned int* out_keys;
+  checkCudaErrors(cudaMalloc(&out_keys, sizeof(unsigned int)*numElems));*/
 
-  cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
+  switch (types){
+  case 0:
+    atomic_kernel << <blocks, m >> >(d_vals, d_histo, numElems);
+
+    cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
+    break;
+
+  // https://www.ecse.rpi.edu/~wrf/wiki/ParallelComputingSpring2014/thrust/histogram.cu
+  case 1:
+    //thrust::sort(in_vals, in_vals + numElems);
+    //thrust::reduce_by_key(in_keys, in_keys + numElems, in_vals, out_keys, out_vals);
+    
+    break;
+  case 3:
+    break;
+  }
 }

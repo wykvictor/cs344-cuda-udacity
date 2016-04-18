@@ -20,7 +20,8 @@
 void computeHistogram(const unsigned int *const d_vals,
                       unsigned int* const d_histo,
                       const unsigned int numBins,
-                      const unsigned int numElems);
+                      const unsigned int numElems,
+                      int types);
 
 int main(void)
 {
@@ -51,7 +52,7 @@ int main(void)
 
   thrust::minstd_rand rng;
 
-  thrust::random::experimental::normal_distribution<float> normalDist((float)mean, stddev);
+  thrust::random::normal_distribution<float> normalDist((float)mean, stddev);
 
   // Generate the random values
   for (size_t i = 0; i < numElems; ++i) {
@@ -60,33 +61,35 @@ int main(void)
 
   unsigned int *d_vals, *d_histo;
 
-  GpuTimer timer;
-
-  checkCudaErrors(cudaMalloc(&d_vals,    sizeof(unsigned int) * numElems));
-  checkCudaErrors(cudaMalloc(&d_histo,   sizeof(unsigned int) * numBins));
-  checkCudaErrors(cudaMemset(d_histo, 0, sizeof(unsigned int) * numBins));
-
-  checkCudaErrors(cudaMemcpy(d_vals, vals, sizeof(unsigned int) * numElems, cudaMemcpyHostToDevice));
-
-  timer.Start();
-  computeHistogram(d_vals, d_histo, numBins, numElems);
-  timer.Stop();
-  int err = printf("Your code ran in: %f msecs.\n", timer.Elapsed());
-
-  if (err < 0) {
-    //Couldn't print! Probably the student closed stdout - bad news
-    std::cerr << "Couldn't print timing information! STDOUT Closed!" << std::endl;
-    exit(1);
-  }
-
-  // copy the student-computed histogram back to the host
-  checkCudaErrors(cudaMemcpy(h_studentHisto, d_histo, sizeof(unsigned int) * numBins, cudaMemcpyDeviceToHost));
-
   //generate reference for the given mean
   reference_calculation(vals, h_refHisto, numBins, numElems);
 
-  //Now do the comparison
-  checkResultsExact(h_refHisto, h_studentHisto, numBins);
+  for (int i = 0; i < 3; i++) { // test different implenmentations
+    GpuTimer timer;
+
+    checkCudaErrors(cudaMalloc(&d_vals, sizeof(unsigned int)* numElems));
+    checkCudaErrors(cudaMalloc(&d_histo, sizeof(unsigned int)* numBins));
+    checkCudaErrors(cudaMemset(d_histo, 0, sizeof(unsigned int)* numBins));
+
+    checkCudaErrors(cudaMemcpy(d_vals, vals, sizeof(unsigned int)* numElems, cudaMemcpyHostToDevice));
+
+    timer.Start();
+    computeHistogram(d_vals, d_histo, numBins, numElems, i);
+    timer.Stop();
+    int err = printf("Your code ran in: %f msecs.\n", timer.Elapsed());
+
+    if (err < 0) {
+      //Couldn't print! Probably the student closed stdout - bad news
+      std::cerr << "Couldn't print timing information! STDOUT Closed!" << std::endl;
+      exit(1);
+    }
+
+    // copy the student-computed histogram back to the host
+    checkCudaErrors(cudaMemcpy(h_studentHisto, d_histo, sizeof(unsigned int)* numBins, cudaMemcpyDeviceToHost));
+
+    //Now do the comparison
+    checkResultsExact(h_refHisto, h_studentHisto, numBins);
+  }
 
   delete[] h_vals;
   delete[] h_refHisto;
