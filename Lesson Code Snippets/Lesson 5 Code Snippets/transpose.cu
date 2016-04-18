@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cuda_profiler_api.h>
 #include "gputimer.h"
 
 const int N= 1024;		// matrix size is NxN
@@ -250,4 +251,6 @@ int main(int argc, char **argv)
 
 	cudaFree(d_in);
 	cudaFree(d_out);
+	
+	cudaProfilerStop();
 }
