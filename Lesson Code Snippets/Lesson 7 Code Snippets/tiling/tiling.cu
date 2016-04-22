@@ -1,9 +1,11 @@
 #include <stdio.h>
+#include <device_launch_parameters.h>
+#include <device_functions.h>
 #include "gputimer.h"
 #include "utils.h"
 
 const int BLOCKSIZE	= 128;
-const int NUMBLOCKS = 1000;					// set this to 1 or 2 for debugging
+const int NUMBLOCKS = 100;					// set this to 1 or 2 for debugging
 const int N 		= BLOCKSIZE*NUMBLOCKS;
 
 /* 
@@ -27,6 +29,60 @@ __global__ void bar(float out[], float in[])
 	int i = threadIdx.x + blockIdx.x*blockDim.x; 
 
 	out[i] = (in[i-2] + in[i-1] + in[i] + in[i+1] + in[i+2]) / 5.0f;
+}
+
+__global__ void bar_tile(float out[], float in[])
+{
+  int i = threadIdx.x + blockIdx.x*blockDim.x;
+  int idx = threadIdx.x;
+  extern __shared__ float sh_din[];  
+  sh_din[idx + 2] = in[i];
+  if (idx == 0) {
+    sh_din[idx] = in[i-2];
+    sh_din[idx+1] = in[i-1];
+  }
+  else if (idx == blockDim.x - 1) {
+    sh_din[idx + 3] = in[i+1];
+    sh_din[idx + 4] = in[i+2];
+  }
+  __syncthreads();
+
+  out[i] = (sh_din[idx] + sh_din[idx + 1] + sh_din[idx + 2] + sh_din[idx + 3] + sh_din[idx + 4]) / 5.0f;
+}
+
+__global__ void bar_tile_2(float out[], float in[])
+{
+  int i = threadIdx.x + blockIdx.x*blockDim.x;
+  int idx = threadIdx.x;
+  extern __shared__ float sh_din[];
+  sh_din[idx] = in[i];
+  __syncthreads();
+  if (idx == 0) {
+    out[i] = (in[i - 2] + in[i - 1] + sh_din[idx] + sh_din[idx + 1] + sh_din[idx + 2]) / 5.0f;
+  }
+  else if (idx == 1) {
+    out[i] = (in[i - 2] + sh_din[idx - 1] + sh_din[idx] + sh_din[idx + 1] + sh_din[idx + 2]) / 5.0f;
+  }
+  else if (idx == blockDim.x - 2) {
+    out[i] = (sh_din[idx - 2] + sh_din[idx - 1] + sh_din[idx] + sh_din[idx + 1] + in[i + 2]) / 5.0f;
+  }
+  else if (idx == blockDim.x - 1) {
+    out[i] = (sh_din[idx - 2] + sh_din[idx - 1] + sh_din[idx] + in[i + 1] + in[i + 2]) / 5.0f;
+  }
+  else {
+    out[i] = (sh_din[idx - 2] + sh_din[idx - 1] + sh_din[idx] + sh_din[idx + 1] + sh_din[idx + 2]) / 5.0f;
+  }  
+}
+
+__global__ void bar_tile_3(float out[], float in[])
+{
+  int idx = threadIdx.x;
+  extern __shared__ float sh_din[];
+  int i_in = blockIdx.x * BLOCKSIZE + idx;
+  sh_din[idx] = in[i_in-2];
+  __syncthreads();
+  if (idx < blockDim.x-4)
+    out[i_in] = (sh_din[idx] + sh_din[idx + 1] + sh_din[idx + 2] + sh_din[idx + 3] + sh_din[idx + 4]) / 5.0f;
 }
 
 void cpuFoo(float out[], float A[], float B[], float C[], float D[], float E[])
@@ -61,23 +117,23 @@ int main(int argc, char **argv)
 	}
 	// device arrays
 	int numBytes = N * sizeof(float);
-	float *d_fooA;	 	cudaMalloc(&d_fooA, numBytes);
-	float *d_fooB; 		cudaMalloc(&d_fooB, numBytes);
-	float *d_fooC;	 	cudaMalloc(&d_fooC, numBytes);
-	float *d_fooD; 		cudaMalloc(&d_fooD, numBytes);
-	float *d_fooE; 		cudaMalloc(&d_fooE, numBytes);
-	float *d_barIn; 	cudaMalloc(&d_barIn, numBytes);
-	cudaMemcpy(d_fooA, fooA, numBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_fooB, fooB, numBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_fooC, fooC, numBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_fooD, fooD, numBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_fooE, fooE, numBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_barIn, barIn, numBytes, cudaMemcpyHostToDevice);	
+	float *d_fooA;	 	checkCudaErrors(cudaMalloc(&d_fooA, numBytes));
+	float *d_fooB; 		checkCudaErrors(cudaMalloc(&d_fooB, numBytes));
+	float *d_fooC;	 	checkCudaErrors(cudaMalloc(&d_fooC, numBytes));
+	float *d_fooD; 		checkCudaErrors(cudaMalloc(&d_fooD, numBytes));
+	float *d_fooE; 		checkCudaErrors(cudaMalloc(&d_fooE, numBytes));
+	float *d_barIn; 	checkCudaErrors(cudaMalloc(&d_barIn, numBytes));
+	checkCudaErrors(cudaMemcpy(d_fooA, fooA, numBytes, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_fooB, fooB, numBytes, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_fooC, fooC, numBytes, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_fooD, fooD, numBytes, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_fooE, fooE, numBytes, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_barIn, barIn, numBytes, cudaMemcpyHostToDevice));	
 
 	// output arrays for host and device
 	float fooOut[N], barOut[N], *d_fooOut, *d_barOut;
-	cudaMalloc(&d_fooOut, numBytes);
-	cudaMalloc(&d_barOut, numBytes);
+	checkCudaErrors(cudaMalloc(&d_fooOut, numBytes));
+	checkCudaErrors(cudaMalloc(&d_barOut, numBytes));
 
 	// declare and compute reference solutions
 	float ref_fooOut[N], ref_barOut[N]; 
@@ -90,14 +146,51 @@ int main(int argc, char **argv)
 	foo<<<N/BLOCKSIZE, BLOCKSIZE>>>(d_fooOut, d_fooA, d_fooB, d_fooC, d_fooD, d_fooE);
 	fooTimer.Stop();
 	
+  checkCudaErrors(cudaMemcpy(fooOut, d_fooOut, numBytes, cudaMemcpyDeviceToHost));
+  printf("foo<<<>>>(): %g ms elapsed. Verifying solution...", fooTimer.Elapsed());
+  compareArrays(ref_fooOut, fooOut, N);
+
 	barTimer.Start();
 	bar<<<N/BLOCKSIZE, BLOCKSIZE>>>(d_barOut, d_barIn);
+  //bar_tile << <N / BLOCKSIZE, BLOCKSIZE, (BLOCKSIZE + 4) * sizeof(float) >> >(d_barOut, d_barIn);
+  //bar_tile_2 << <N / BLOCKSIZE, BLOCKSIZE, (BLOCKSIZE) * sizeof(float) >> >(d_barOut, d_barIn);
+  //bar_tile_3 << <N / BLOCKSIZE, BLOCKSIZE+4, (BLOCKSIZE + 4) * sizeof(float) >> >(d_barOut, d_barIn);
 	barTimer.Stop();
 
-	cudaMemcpy(fooOut, d_fooOut, numBytes, cudaMemcpyDeviceToHost);
-	cudaMemcpy(barOut, d_barOut, numBytes, cudaMemcpyDeviceToHost);
-	printf("foo<<<>>>(): %g ms elapsed. Verifying solution...", fooTimer.Elapsed());
-	compareArrays(ref_fooOut, fooOut, N);
+	checkCudaErrors(cudaMemcpy(barOut, d_barOut, numBytes, cudaMemcpyDeviceToHost));
 	printf("bar<<<>>>(): %g ms elapsed. Verifying solution...", barTimer.Elapsed());
 	compareArrays(ref_barOut, barOut, N);
+
+  barTimer.Start();
+  bar_tile << <N / BLOCKSIZE, BLOCKSIZE, (BLOCKSIZE + 4) * sizeof(float) >> >(d_barOut, d_barIn);
+  barTimer.Stop();
+
+  checkCudaErrors(cudaMemcpy(barOut, d_barOut, numBytes, cudaMemcpyDeviceToHost));
+  printf("bar_tile<<<>>>(): %g ms elapsed. Verifying solution...", barTimer.Elapsed());
+  compareArrays(ref_barOut, barOut, N);
+
+  barTimer.Start();
+  bar_tile_2 << <N / BLOCKSIZE, BLOCKSIZE, (BLOCKSIZE)* sizeof(float) >> >(d_barOut, d_barIn);
+  barTimer.Stop();
+
+  checkCudaErrors(cudaMemcpy(barOut, d_barOut, numBytes, cudaMemcpyDeviceToHost));
+  printf("bar_tile_2<<<>>>(): %g ms elapsed. Verifying solution...", barTimer.Elapsed());
+  compareArrays(ref_barOut, barOut, N);
+
+  barTimer.Start();
+  bar_tile_3 << <N / BLOCKSIZE, BLOCKSIZE + 4, (BLOCKSIZE + 4) * sizeof(float) >> >(d_barOut, d_barIn);
+  barTimer.Stop();
+
+  checkCudaErrors(cudaMemcpy(barOut, d_barOut, numBytes, cudaMemcpyDeviceToHost));
+  printf("bar_tile_3<<<>>>(): %g ms elapsed. Verifying solution...", barTimer.Elapsed());
+  compareArrays(ref_barOut, barOut, N);
+
+	checkCudaErrors(cudaFree(d_fooA));
+	checkCudaErrors(cudaFree(d_fooB));
+	checkCudaErrors(cudaFree(d_fooC));
+	checkCudaErrors(cudaFree(d_fooD));
+	checkCudaErrors(cudaFree(d_fooE));
+  checkCudaErrors(cudaFree(d_barIn));
+	checkCudaErrors(cudaFree(d_fooOut));
+	checkCudaErrors(cudaFree(d_barOut));
 }
