@@ -3,7 +3,7 @@
 #include "gputimer.h"
 
 const int N= 1024;		// matrix size is NxN
-const int K= 32;				// tile size is KxK
+const int K= 32;		// tile size is KxK
 
 // Utility functions: compare, print, and fill matrices
 #define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
@@ -48,8 +48,6 @@ void fill_matrix(float *mat)
 	for(int j=0; j < N * N; j++)
 		mat[j] = (float) j;
 }
-
-
 
 void 
 transpose_CPU(float in[], float out[])

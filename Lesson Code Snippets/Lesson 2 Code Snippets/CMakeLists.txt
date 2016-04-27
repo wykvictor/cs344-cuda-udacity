@@ -7,10 +7,8 @@
 
 # collect source files
 
-file( GLOB  Lesson7_tiling_hdr tiling/*.hpp tiling/*.h )
-SET (Lesson7_tiling_files tiling/tiling.cu)
-CUDA_ADD_EXECUTABLE(Lesson7_tiling ${Lesson7_tiling_files} ${Lesson7_tiling_hdr})
+CUDA_ADD_EXECUTABLE(Lesson2_atomics atomics.cu)
 
-file( GLOB  Lesson7_thrust_hdr thrust/*.h )
-SET (Lesson7_thrust_files thrust/thrust_example.cu thrust/gettime.cc)
-CUDA_ADD_EXECUTABLE(Lesson7_thrust ${Lesson7_thrust_files} ${Lesson7_thrust_hdr})
+CUDA_ADD_EXECUTABLE(Lesson2_memory memory.cu)
+
+CUDA_ADD_EXECUTABLE(Lesson2_hello_world hello.cu)

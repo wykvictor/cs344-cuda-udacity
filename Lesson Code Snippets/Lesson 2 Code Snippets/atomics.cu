@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
+#include <device_launch_parameters.h>
+#include <device_functions.h>
 #include "gputimer.h"
 
 #define NUM_THREADS 1000000
@@ -50,8 +55,8 @@ int main(int argc,char **argv)
 
     // launch the kernel - comment out one of these
     timer.Start();
-    // increment_naive<<<NUM_THREADS/BLOCK_WIDTH, BLOCK_WIDTH>>>(d_array);
-    increment_atomic<<<NUM_THREADS/BLOCK_WIDTH, BLOCK_WIDTH>>>(d_array);
+    increment_naive<<<NUM_THREADS/BLOCK_WIDTH, BLOCK_WIDTH>>>(d_array);
+    //increment_atomic<<<NUM_THREADS/BLOCK_WIDTH, BLOCK_WIDTH>>>(d_array);
     timer.Stop();
     
     // copy back the array of sums from GPU and print
