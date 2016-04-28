@@ -21,9 +21,3 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
     tp->tv_usec = (long) (system_time.wMilliseconds * 1000);
     return 0;
 }
-
-double tic() {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return ((double)t.tv_sec * 1000 + ((double)t.tv_usec) / 1000.);
-}

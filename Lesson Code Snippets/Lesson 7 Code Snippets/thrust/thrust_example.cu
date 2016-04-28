@@ -10,12 +10,6 @@
 #include "gputimer.h"
 #include "gettime.h"
 
-double tic() {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return ((double)t.tv_sec * 1000 + ((double)t.tv_usec) / 1000.);
-}
-
 int main(void)
 {
   // generate N random numbers serially
