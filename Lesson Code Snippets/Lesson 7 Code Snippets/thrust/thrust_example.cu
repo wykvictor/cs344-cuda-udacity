@@ -5,28 +5,39 @@
 #include <thrust/copy.h>
 #include <algorithm>
 #include <cstdlib>
+#include <vector>
 
 #include "gputimer.h"
+#include "gettime.h"
+
+double tic() {
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return ((double)t.tv_sec * 1000 + ((double)t.tv_usec) / 1000.);
+}
 
 int main(void)
 {
   // generate N random numbers serially
   int N = 1000000;
-  thrust::host_vector<char> h_vec(N);
+  std::vector<char> h_vec(N);
   std::generate(h_vec.begin(), h_vec.end(), rand);
+  std::vector<char> h_vec_std(h_vec);
 
-  // transfer data to the device
-  thrust::device_vector<char> d_vec = h_vec;
+  double t0 = tic();
+  thrust::sort(h_vec.begin(), h_vec.end());
+  std::cout << "thrust::sort took " << tic() - t0 << " ms." << std::endl;
 
-  // sort data on the device (846M keys per second on GeForce GTX 480)
-  GpuTimer timer;
-  timer.Start();
-  thrust::sort(d_vec.begin(), d_vec.end());
-  timer.Stop();
+  t0 = tic();
+  std::sort(h_vec_std.begin(), h_vec_std.end());
+  std::cout << "std::sort took " << tic() - t0 << " ms." << std::endl;
 
-  // transfer data back to host
-  thrust::copy(d_vec.begin(), d_vec.end(), h_vec.begin());
-  
-  printf("Thrust sorted %d keys in %g ms\n", N, timer.Elapsed());
+  for (int i = 0; i < N; i++) {
+    if (h_vec[i] != h_vec_std[i]) {
+      std::cout << i << " Not same!" << std::endl;
+      exit(1);
+    }
+  }
+
   return 0;
 }
