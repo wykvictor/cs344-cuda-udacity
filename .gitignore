@@ -19,6 +19,6 @@
 # OS X stuff
 .DS_Store
 
-build
+build*
 bin
 
