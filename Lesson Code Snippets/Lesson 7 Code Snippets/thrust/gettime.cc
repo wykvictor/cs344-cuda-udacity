@@ -22,8 +22,16 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
     return 0;
 }
 
-double tic() {
+/*double tic() {
   struct timeval t;
   gettimeofday(&t, NULL);
   return ((double)t.tv_sec * 1000 + ((double)t.tv_usec) / 1000.);
+}*/
+
+double tic() {
+  LARGE_INTEGER m_nFreq;
+  LARGE_INTEGER m_Time;
+  QueryPerformanceFrequency(&m_nFreq);
+  QueryPerformanceCounter(&m_Time);
+  return (double)m_Time.QuadPart * 1000. / m_nFreq.QuadPart;
 }
