@@ -156,20 +156,26 @@ __global__ void cdf_kernel(unsigned int * d_in, const size_t numBins)
 
 // Blelloch Scan - described in lecture
 __global__ void cdf_kernel_2(unsigned int * d_in, const size_t numBins)
-{
-  int myId = threadIdx.x;
-  extern __shared__ float sdata[];
-  sdata[myId] = d_in[myId];
-  __syncthreads();            // make sure entire block is loaded!
+{ 
+  int idx = threadIdx.x;
+  extern __shared__ int temp[];
+  int pout = 0, pin = 1;
 
-  for (int d = 1; d < numBins; d *= 2) {
-    if (myId >= d) {
-      sdata[myId] += sdata[myId - d];
+  temp[idx] = (idx > 0) ? d_in[idx - 1] : 0;
+  __syncthreads();
+
+  for (int offset = 1; offset < n; offset *= 2) {
+    // swap double buffer indices
+    pout = 1 - pout;
+    pin = 1 - pout;
+    if (idx >= offset) {
+      temp[pout*n+idx] = temp[pin*n+idx - offset] + temp[pin*n+idx];  // changed line
+    } else {
+      temp[pout*n+idx] = temp[pin*n+idx];
     }
     __syncthreads();
   }
-  if (myId == 0)  d_in[0] = 0;
-  else  d_in[myId] = sdata[myId - 1]; //inclusive->exclusive
+  d_in[idx] = temp[pout*n+idx];
 }
 
 void your_histogram_and_prefixsum(const float* const d_logLuminance,
@@ -218,5 +224,5 @@ void your_histogram_and_prefixsum(const float* const d_logLuminance,
   //   the cumulative distribution of luminance values (this should go in the
   //   incoming d_cdf pointer which already has been allocated for you)      
   //cdf_kernel << <1, numBins>> >(d_cdf, numBins);
-  cdf_kernel_2 << <1, numBins, sizeof(unsigned int)* numBins >> >(d_cdf, numBins);
+  cdf_kernel_2 << <1, numBins, sizeof(unsigned int) * numBins * 2 >> >(d_cdf, numBins);
 }
